@@ -1,0 +1,10 @@
+services:
+  homepage:
+    image: nginx:alpine
+    container_name: bitpulse-homepage
+    restart: always
+    ports:
+      - "80:80"  # 堂堂正正接管公网 80 端口
+    volumes:
+      - .:/usr/share/nginx/html:ro
+      - ./nginx-conf:/etc/nginx/conf.d:ro  # 挂载我们刚刚写的交通指挥文件

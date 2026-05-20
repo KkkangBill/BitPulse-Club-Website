@@ -1,0 +1,13 @@
+services:
+  alist:
+    image: xhofe/alist:latest
+    container_name: bitpulse-nas
+    restart: always
+    ports:
+      - "5244:5244"  # 我们让网盘服务运行在 5244 端口
+    volumes:
+      - ./data:/opt/alist/data
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=022
