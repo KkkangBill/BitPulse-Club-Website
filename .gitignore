@@ -1,14 +1,13 @@
-# 忽略 Lobechat 的数据库和存储数据
-lobechat-db/minio_data/
-lobechat-db/pgdata/
+# 忽略 Lobechat 的数据库数据 (已重命名为 chat)
+chat/pgdata/
 
-# 忽略 NAS 的私有数据、日志和缓存
-my-nas/data/
-my-nas/log/
-my-nas/temp/
-my-nas/*.db
-my-nas/*.db-shm
-my-nas/*.db-wal
+# 忽略 NAS 的私有数据、日志和缓存 (已重命名为 pan)
+pan/data/
+pan/log/
+pan/temp/
+pan/*.db
+pan/*.db-shm
+pan/*.db-wal
 
 # 忽略可能包含密码的环境变量文件
 .env
