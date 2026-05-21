@@ -13,3 +13,7 @@ pan/*.db-wal
 .env
 *.log
 .DS_Store
+# 忽略 Authentik 数据
+passport/database/
+passport/media/
+passport/certs/

@@ -1,0 +1,67 @@
+x-authentik-env: &authentik-env
+  # 数据库连接配置
+  AUTHENTIK_REDIS__HOST: redis
+  AUTHENTIK_POSTGRESQL__HOST: postgresql
+  AUTHENTIK_POSTGRESQL__USER: authentik
+  AUTHENTIK_POSTGRESQL__NAME: authentik
+  AUTHENTIK_POSTGRESQL__PASSWORD: bitpulse_auth_db_password
+  # 核心加密密钥（请勿外泄）
+  AUTHENTIK_SECRET_KEY: bitpulse_super_secret_key_authentik_2026_xYz
+  # 禁用错误上报以保护服务器隐私
+  AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+  # 告诉 Authentik 它运行在反向代理之后
+  AUTHENTIK_PORT_HTTP: 9000
+  AUTHENTIK_PORT_HTTPS: 9443
+
+services:
+  # 1. 独立的 PostgreSQL 数据库（不与 LobeChat 混用，保证绝对安全隔离）
+  postgresql:
+    image: postgres:16-alpine
+    container_name: authentik-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: bitpulse_auth_db_password
+      POSTGRES_USER: authentik
+      POSTGRES_DB: authentik
+    volumes:
+      - ./database:/var/lib/postgresql/data
+
+  # 2. Redis 缓存系统
+  redis:
+    image: redis:alpine
+    container_name: authentik-redis
+    restart: always
+
+  # 3. Authentik Web 主服务
+  server:
+    image: ghcr.io/goauthentik/server:latest
+    container_name: authentik-server
+    restart: always
+    command: server
+    environment:
+      <<: *authentik-env
+    volumes:
+      - ./media:/media
+      - ./custom-templates:/templates
+    ports:
+      - "9000:9000"  # 将 Web 端口映射到宿主机 9000
+    depends_on:
+      - postgresql
+      - redis
+
+  # 4. Authentik 后台任务工作节点
+  worker:
+    image: ghcr.io/goauthentik/server:latest
+    container_name: authentik-worker
+    restart: always
+    command: worker
+    environment:
+      <<: *authentik-env
+    user: root
+    volumes:
+      - ./media:/media
+      - ./certs:/certs
+      - ./custom-templates:/templates
+    depends_on:
+      - postgresql
+      - redis
