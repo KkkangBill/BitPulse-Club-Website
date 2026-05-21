@@ -11,16 +11,16 @@ services:
     volumes:
       - ./pgdata:/var/lib/postgresql
 
-  # 2. 【终极代替】用完全开源、100%全放通跨域的本地轻量化 WebDAV/S3 桥接器替换 MinIO
-  lobechat-minio:
-    image: rclone/rclone:latest
-    container_name: lobechat-minio
-    restart: always
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./minio_data:/data
-    command: rcd --rc-addr :9000 --rc-no-auth --rc-serve --rc-files /data
+#   # 2. 【终极代替】用完全开源、100%全放通跨域的本地轻量化 WebDAV/S3 桥接器替换 MinIO
+#   lobechat-minio:
+#     image: rclone/rclone:latest
+#     container_name: lobechat-minio
+#     restart: always
+#     ports:
+#       - "9000:9000"
+#     volumes:
+#       - ./minio_data:/data
+#     command: rcd --rc-addr :9000 --rc-no-auth --rc-serve --rc-files /data
 
   # 3. LobeChat 主程序
   lobehub:
@@ -31,7 +31,7 @@ services:
       - "3210:3210"
     depends_on:
       - postgresql
-      - lobechat-minio
+    #   - lobechat-minio
     environment:
       APP_URL: https://chat.bitpulse.club
       DATABASE_URL: postgresql://myuser:bitpulse@postgresql:5432/lobechat
