@@ -42,4 +42,4 @@ nginx/logs/
 # 6. 忽略前端或开发工具的自动生成文件夹
 .vscode/
 .idea/
-node_modules/
+node_modules/*.tar.gz
