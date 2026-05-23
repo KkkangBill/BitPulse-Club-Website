@@ -89,8 +89,6 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-2 opacity-40"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                 <span class="text-xs tracking-wider">更多子系统构建中...</span>
             </div>
-
-
         </main>
     </div>
 
@@ -111,151 +109,17 @@
         </div>
     </div>
 
-    <script>
-        // ==========================================
-        // 1. 系统维护弹窗逻辑 (保留你的原逻辑)
-        // ==========================================
-        function showMaintenanceAlert(siteName) {
-            const modal = document.getElementById('maintenance-modal');
-            const box = document.getElementById('modal-box');
-            document.getElementById('site-name').innerText = siteName;
-            
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-95');
-            box.classList.add('scale-100');
-        }
-
-        function closeMaintenanceAlert() {
-            const modal = document.getElementById('maintenance-modal');
-            const box = document.getElementById('modal-box');
-            
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-100');
-            box.classList.add('scale-95');
-        }
-
-        // ==========================================
-        // 2. 个人档案模态框控制逻辑
-        // ==========================================
-        function openProfileModal() {
-            const modal = document.getElementById('profile-modal');
-            const box = document.getElementById('profile-box');
-            modal.classList.remove('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-95');
-            box.classList.add('scale-100');
-        }
-
-        function closeProfileModal() {
-            const modal = document.getElementById('profile-modal');
-            const box = document.getElementById('profile-box');
-            modal.classList.add('opacity-0', 'pointer-events-none');
-            box.classList.remove('scale-100');
-            box.classList.add('scale-95');
-        }
-
-
-        // ==========================================
-        // 💥 全域终极注销：多米诺骨牌重定向链路
-        // ==========================================
-        function executeGlobalLogout() {
-            // 👉 请务必填入你自己的 Logto Client ID！
-            const logtoClientId = "9996bbcsgv1l9ueqvg8py"; 
-            
-            // 骨牌第 3 站：Logto 中央注销，退完最终跳回你的主页
-            const homeUrl = encodeURIComponent("https://bitpulse.club");
-            const step3_Logto = `https://passport.bitpulse.club/oidc/session/end?client_id=${logtoClientId}&post_logout_redirect_uri=${homeUrl}`;
-
-            // 骨牌第 2 站：网关保安注销，撕掉主域名门票，然后带着参数去 Logto
-            // 这一层必须编码，因为它是传给 OAuth2-Proxy 读取的
-            const step2_Proxy = `https://bitpulse.club/oauth2/sign_out?rd=${encodeURIComponent(step3_Logto)}`;
-
-            // 骨牌第 1 站：直奔子网站的核爆节点，炸毁 LobeChat 凭证，然后带着参数去网关
-            // 🚨 核心修复：这里绝对不能加 encodeURIComponent！让 Nginx 接收最纯净的 https:// 开头网址
-            const step1_Lobe = `https://chat.bitpulse.club/sso-kill?rd=${step2_Proxy}`;
-
-            // 推倒第一块骨牌！开始 0.5 秒的极速连环跳转！
-            window.location.href = step1_Lobe;
-        }
-
-        
-
-        // ==========================================
-        // 4. 页面初始化：拉取身份并渲染右上角按钮 (终极防弹版)
-        // ==========================================
-        async function initAuth() {
-            const widget = document.getElementById('user-widget');
-            try {
-                // 走我们挖的后门隧道，直接访问 Logto 原始 API
-                const res = await fetch('/api/me');
-                
-                // 🚨 防弹机制：如果请求被重定向（通常是跳转到了登录页），或者状态码不是 200
-                // 说明当前根本没登录，直接显示“登入引擎”按钮并终止后续执行
-                if (res.redirected || !res.ok) {
-                    widget.innerHTML = `
-                        <a href="/oauth2/start" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-full transition-all shadow-lg shadow-indigo-500/20 transform hover:scale-105 inline-block">
-                            登入引擎
-                        </a>
-                    `;
-                    return; 
-                }
-
-                // 尝试解析 Logto 返回的 JSON 数据
-                const text = await res.text();
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (err) {
-                    throw new Error("后端返回了非 JSON 格式的数据");
-                }
-                
-                const email = data.email || 'user@bitpulse.club';
-                
-                // 霸气提取：直接拿 username，如果没有再拿 name，最后用邮箱前缀兜底
-                const username = data.username || data.name || email.split('@')[0];
-                const initial = username.charAt(0).toUpperCase();
-
-                // 渲染已登录的个人面板
-                widget.innerHTML = `
-                    <button onclick="openProfileModal()" class="flex items-center space-x-3 bg-gray-900/80 border border-gray-700 hover:border-indigo-500 rounded-full pl-4 pr-1 py-1 transition-all focus:outline-none group shadow-lg hover:shadow-indigo-500/20">
-                        <span class="text-sm font-medium text-gray-300 hidden sm:block group-hover:text-indigo-300 transition-colors">${username}</span>
-                        <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-inner border border-gray-800 group-hover:scale-105 transition-transform">
-                            ${initial}
-                        </div>
-                    </button>
-                `;
-
-                // 注入模态框数据
-                document.getElementById('modal-avatar').innerText = initial;
-                document.getElementById('modal-username').innerText = username;
-                document.getElementById('modal-email').innerText = email;
-
-            } catch (e) {
-                console.error("认证探针执行失败:", e);
-                // 如果后端崩溃或网络断开，给出一个红色的警告
-                widget.innerHTML = `<span class="text-xs text-red-500 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">通信中断</span>`;
-            }
-        }
-
-        // ==========================================
-        // 🚨 极其重要：引擎启动开关！绝对不能漏掉这一行！
-        // ==========================================
-        initAuth();
-
-    </script>
     <div id="profile-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md opacity-0 pointer-events-none transition-opacity duration-300">
         <div class="bg-gray-900 border border-gray-700/50 rounded-2xl w-full max-w-md shadow-2xl transform scale-95 transition-transform duration-300 overflow-hidden" id="profile-box">
-            
             <div class="h-24 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 relative">
                 <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors bg-gray-900/50 hover:bg-gray-800 rounded-full p-1.5 backdrop-blur-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
-
             <div class="px-6 relative">
                 <div id="modal-avatar" class="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-3xl shadow-xl border-4 border-gray-900 absolute -top-10 left-6">
-                    </div>
+                </div>
             </div>
-
             <div class="px-6 pt-14 pb-6">
                 <h3 class="text-2xl font-bold text-white mb-1" id="modal-username">读取中...</h3>
                 <p class="text-gray-400 text-sm mb-6 flex items-center">
@@ -290,6 +154,101 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function showMaintenanceAlert(siteName) {
+            const modal = document.getElementById('maintenance-modal');
+            const box = document.getElementById('modal-box');
+            document.getElementById('site-name').innerText = siteName;
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
+
+        function closeMaintenanceAlert() {
+            const modal = document.getElementById('maintenance-modal');
+            const box = document.getElementById('modal-box');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
+
+        function openProfileModal() {
+            const modal = document.getElementById('profile-modal');
+            const box = document.getElementById('profile-box');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
+
+        function closeProfileModal() {
+            const modal = document.getElementById('profile-modal');
+            const box = document.getElementById('profile-box');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
+
+        // ==========================================
+        // 🚨 终极修复版：多米诺骨牌重定向链路 (不再乱码)
+        // ==========================================
+        function executeGlobalLogout() {
+            const logtoClientId = "9996bbcsgv1l9ueqvg8py"; 
+            const homeUrl = encodeURIComponent("https://bitpulse.club");
+            const step3_Logto = `https://passport.bitpulse.club/oidc/session/end?client_id=${logtoClientId}&post_logout_redirect_uri=${homeUrl}`;
+            
+            // 发给 Proxy 的 rd 参数必须编码
+            const step2_Proxy = `https://bitpulse.club/oauth2/sign_out?rd=${encodeURIComponent(step3_Logto)}`;
+
+            // ⚠️ 修复点：这里去掉了 encodeURIComponent，让 Nginx 接收绝对路径
+            const step1_Lobe = `https://chat.bitpulse.club/sso-kill?rd=${step2_Proxy}`;
+
+            window.location.href = step1_Lobe;
+        }
+
+        async function initAuth() {
+            const widget = document.getElementById('user-widget');
+            try {
+                const res = await fetch('/api/me');
+                if (res.redirected || !res.ok) {
+                    widget.innerHTML = `
+                        <a href="/oauth2/start" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-bold rounded-full transition-all shadow-lg shadow-indigo-500/20 transform hover:scale-105 inline-block">
+                            登入引擎
+                        </a>
+                    `;
+                    return; 
+                }
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (err) {
+                    throw new Error("后端返回非 JSON");
+                }
+                
+                const email = data.email || 'user@bitpulse.club';
+                const username = data.username || data.name || email.split('@')[0];
+                const initial = username.charAt(0).toUpperCase();
+
+                widget.innerHTML = `
+                    <button onclick="openProfileModal()" class="flex items-center space-x-3 bg-gray-900/80 border border-gray-700 hover:border-indigo-500 rounded-full pl-4 pr-1 py-1 transition-all focus:outline-none group shadow-lg hover:shadow-indigo-500/20">
+                        <span class="text-sm font-medium text-gray-300 hidden sm:block group-hover:text-indigo-300 transition-colors">${username}</span>
+                        <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-inner border border-gray-800 group-hover:scale-105 transition-transform">
+                            ${initial}
+                        </div>
+                    </button>
+                `;
+
+                document.getElementById('modal-avatar').innerText = initial;
+                document.getElementById('modal-username').innerText = username;
+                document.getElementById('modal-email').innerText = email;
+
+            } catch (e) {
+                console.error("认证失败:", e);
+                widget.innerHTML = `<span class="text-xs text-red-500 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">通信中断</span>`;
+            }
+        }
+        initAuth();
+    </script>
 </body>
 </html>
-

@@ -1,10 +1,13 @@
+version: '3.8'
+
 services:
+  # 比特脉冲中央主页服务
   homepage:
     image: nginx:alpine
     container_name: bitpulse-homepage
     restart: always
     ports:
-      - "80:80"  # 堂堂正正接管公网 80 端口
+      - "80:80"
     volumes:
       - .:/usr/share/nginx/html:ro
-      - ./nginx-conf:/etc/nginx/conf.d:ro  # 挂载我们刚刚写的交通指挥文件
+      - ./nginx-conf:/etc/nginx/conf.d:ro

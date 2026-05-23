@@ -1,10 +1,13 @@
+version: '3.8'
+
 services:
+  # 比特云 NAS (Alist 独立存储服务)
   alist:
     image: xhofe/alist:latest
     container_name: bitpulse-nas
     restart: always
     ports:
-      - "5244:5244"  # 我们让网盘服务运行在 5244 端口
+      - "5244:5244"
     volumes:
       - ./data:/opt/alist/data
     environment:

@@ -1,19 +1,19 @@
 version: "3.8"
 
 services:
-  # ==========================================
-  # 新增：极其轻量、速度极快的 Redis 内存数据库
-  # ==========================================
+  # 1. 保安专用轻量缓存数据库
   redis:
     image: redis:alpine
     container_name: bitpulse-redis
     restart: always
-    # 不需要暴露端口到公网，只在 Docker 内部供保安调用即可
-  # 1. 核心数据库
+
+  # 2. 核心数据库 (Logto 专属)
   postgres:
     image: postgres:14
     container_name: logto_postgres
     restart: always
+    env_file:
+      - ../.env
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -26,17 +26,19 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. 统一身份认证中心 (Logto Core)
+  # 3. 统一身份认证中心 (Logto Core)
   logto:
     image: ghcr.io/logto-io/logto:latest
     container_name: logto
     restart: always
     ports:
-      - "3001:3001" # 核心大门
-      - "3002:3002" # 管理后台
+      - "3001:3001"
+      - "3002:3002"
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - ../.env
     environment:
       - TRUST_PROXY_HEADER=1
       - DB_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
@@ -44,41 +46,31 @@ services:
       - ADMIN_ENDPOINT=${LOGTO_ADMIN_ENDPOINT}
     entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
 
-  # 3. 前线保安网关 (新增：保护主页静态页面)
+  # 4. 前线保安网关 (保护主页静态页面与通行证闭环)
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:latest
     container_name: bitpulse-guard
     restart: always
     ports:
-      - "4180:4180" # 保安的安检通道端口
+      - "4180:4180"
     depends_on:
-      - redis # 确保 Redis 先启动
+      - redis
+    env_file:
+      - ../.env
     environment:
-      # --- 强制监听所有网络接口，彻底打通 Docker 局域网 ---
       OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
-
-      # --- 基础基础配置 ---
       OAUTH2_PROXY_PROVIDER: oidc
       OAUTH2_PROXY_CLIENT_ID: ${GUARD_CLIENT_ID}
       OAUTH2_PROXY_CLIENT_SECRET: ${GUARD_CLIENT_SECRET}
       OAUTH2_PROXY_OIDC_ISSUER_URL: "https://passport.bitpulse.club/oidc"
-      # 1. 明确要求：不要用乱码ID，请把 Logto 的 "username" 映射为 user 字段
-    #   OAUTH2_PROXY_USER_ID_CLAIM: "username"
-      
-      # 2. 授权范围：确保保安向 Logto 索要用户档案权限（默认只有 openid 和 email）
       OAUTH2_PROXY_SCOPE: "openid email profile"
       OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
-      # 🚨 新增这一行：命令保安在内部查票时，必须把 Token 作为请求头交还给 Nginx
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_SESSION_STORE_TYPE: "redis"
       OAUTH2_PROXY_REDIS_CONNECTION_URL: "redis://redis:6379"
-      # --- 路由与安全（记得把 <你的主页域名> 替换为真实的，如 bitpulse.club） ---
       OAUTH2_PROXY_REDIRECT_URL: "https://bitpulse.club/oauth2/callback" 
       OAUTH2_PROXY_COOKIE_DOMAINS: ".bitpulse.club"
-      # 允许登出后重定向到你的主域名和登录界面
       OAUTH2_PROXY_WHITELIST_DOMAINS: ".bitpulse.club,passport.bitpulse.club"
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
       OAUTH2_PROXY_COOKIE_SECRET: ${GUARD_COOKIE_SECRET}
-      
-      # --- 🚀 魔法开关：无感自动跳转 ---
       OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"

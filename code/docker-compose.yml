@@ -1,4 +1,7 @@
+version: '3.8'
+
 services:
+  # 云端极客沙盒环境
   code-playground:
     image: nginx:alpine
     container_name: bitpulse-code

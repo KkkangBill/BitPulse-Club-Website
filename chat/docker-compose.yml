@@ -1,20 +1,21 @@
 version: '3.8'
 
 services:
-  # 1. 核心数据库
+  # 1. 核心数据库 (LobeChat 专属)
   postgresql:
     image: paradedb/paradedb:latest
     container_name: lobechat-postgres
     restart: always
+    env_file:
+      - ../.env
     environment:
       POSTGRES_DB: lobechat
       POSTGRES_USER: myuser
-      # 从 .env 读取密码
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./pgdata:/var/lib/postgresql
 
-  # 2. LobeChat 主程序
+  # 2. LobeChat 主程序 (已适配 V2 Better Auth 架构)
   lobehub:
     image: lobehub/lobehub:latest
     container_name: lobechat-db-app
@@ -23,10 +24,10 @@ services:
       - "3210:3210"
     depends_on:
       - postgresql
+    env_file:
+      - ../.env
     environment:
-        
       APP_URL: https://chat.bitpulse.club
-      # 动态拼接带密码的数据库连接字符串
       DATABASE_URL: postgresql://myuser:${POSTGRES_PASSWORD}@postgresql:5432/lobechat
 
       # --- 核心模型控制 ---
@@ -49,9 +50,8 @@ services:
       S3_BUCKET: bitpulse-lobechat
       S3_ENDPOINT: https://23a561cd4d567a5c14d54d55979aaf5d.r2.cloudflarestorage.com
       S3_PUBLIC_DOMAIN: https://23a561cd4d567a5c14d54d55979aaf5d.r2.cloudflarestorage.com
-      QSTASH_TOKEN: dummy_token_12345
 
-      # --- 安全与身份验证 ---
+      # --- 安全与身份验证 (彻底移除旧版 NEXTAUTH_ 变量) ---
       KEY_VAULTS_SECRET: ${KEY_VAULTS_SECRET}
       AUTH_SECRET: ${AUTH_SECRET}
       NEXT_PUBLIC_ENABLE_AUTH: "1"
