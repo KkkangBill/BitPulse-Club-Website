@@ -1,67 +1,84 @@
-x-authentik-env: &authentik-env
-  # 数据库连接配置
-  AUTHENTIK_REDIS__HOST: redis
-  AUTHENTIK_POSTGRESQL__HOST: postgresql
-  AUTHENTIK_POSTGRESQL__USER: authentik
-  AUTHENTIK_POSTGRESQL__NAME: authentik
-  AUTHENTIK_POSTGRESQL__PASSWORD: bitpulse_auth_db_password
-  # 核心加密密钥（请勿外泄）
-  AUTHENTIK_SECRET_KEY: bitpulse_super_secret_key_authentik_2026_xYz
-  # 禁用错误上报以保护服务器隐私
-  AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
-  # 告诉 Authentik 它运行在反向代理之后
-  AUTHENTIK_PORT_HTTP: 9000
-  AUTHENTIK_PORT_HTTPS: 9443
+version: "3.8"
 
 services:
-  # 1. 独立的 PostgreSQL 数据库（不与 LobeChat 混用，保证绝对安全隔离）
-  postgresql:
-    image: postgres:16-alpine
-    container_name: authentik-postgres
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: bitpulse_auth_db_password
-      POSTGRES_USER: authentik
-      POSTGRES_DB: authentik
-    volumes:
-      - ./database:/var/lib/postgresql/data
-
-  # 2. Redis 缓存系统
+  # ==========================================
+  # 新增：极其轻量、速度极快的 Redis 内存数据库
+  # ==========================================
   redis:
     image: redis:alpine
-    container_name: authentik-redis
+    container_name: bitpulse-redis
     restart: always
-
-  # 3. Authentik Web 主服务
-  server:
-    image: ghcr.io/goauthentik/server:latest
-    container_name: authentik-server
+    # 不需要暴露端口到公网，只在 Docker 内部供保安调用即可
+  # 1. 核心数据库
+  postgres:
+    image: postgres:14
+    container_name: logto_postgres
     restart: always
-    command: server
     environment:
-      <<: *authentik-env
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
-      - ./media:/media
-      - ./custom-templates:/templates
+      - ./logto_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. 统一身份认证中心 (Logto Core)
+  logto:
+    image: ghcr.io/logto-io/logto:latest
+    container_name: logto
+    restart: always
     ports:
-      - "9000:9000"  # 将 Web 端口映射到宿主机 9000
+      - "3001:3001" # 核心大门
+      - "3002:3002" # 管理后台
     depends_on:
-      - postgresql
-      - redis
-
-  # 4. Authentik 后台任务工作节点
-  worker:
-    image: ghcr.io/goauthentik/server:latest
-    container_name: authentik-worker
-    restart: always
-    command: worker
+      postgres:
+        condition: service_healthy
     environment:
-      <<: *authentik-env
-    user: root
-    volumes:
-      - ./media:/media
-      - ./certs:/certs
-      - ./custom-templates:/templates
+      - TRUST_PROXY_HEADER=1
+      - DB_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - ENDPOINT=${LOGTO_ENDPOINT}
+      - ADMIN_ENDPOINT=${LOGTO_ADMIN_ENDPOINT}
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+
+  # 3. 前线保安网关 (新增：保护主页静态页面)
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:latest
+    container_name: bitpulse-guard
+    restart: always
+    ports:
+      - "4180:4180" # 保安的安检通道端口
     depends_on:
-      - postgresql
-      - redis
+      - redis # 确保 Redis 先启动
+    environment:
+      # --- 强制监听所有网络接口，彻底打通 Docker 局域网 ---
+      OAUTH2_PROXY_HTTP_ADDRESS: "0.0.0.0:4180"
+
+      # --- 基础基础配置 ---
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_CLIENT_ID: ${GUARD_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${GUARD_CLIENT_SECRET}
+      OAUTH2_PROXY_OIDC_ISSUER_URL: "https://passport.bitpulse.club/oidc"
+      # 1. 明确要求：不要用乱码ID，请把 Logto 的 "username" 映射为 user 字段
+    #   OAUTH2_PROXY_USER_ID_CLAIM: "username"
+      
+      # 2. 授权范围：确保保安向 Logto 索要用户档案权限（默认只有 openid 和 email）
+      OAUTH2_PROXY_SCOPE: "openid email profile"
+      OAUTH2_PROXY_PASS_ACCESS_TOKEN: "true"
+      # 🚨 新增这一行：命令保安在内部查票时，必须把 Token 作为请求头交还给 Nginx
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_SESSION_STORE_TYPE: "redis"
+      OAUTH2_PROXY_REDIS_CONNECTION_URL: "redis://redis:6379"
+      # --- 路由与安全（记得把 <你的主页域名> 替换为真实的，如 bitpulse.club） ---
+      OAUTH2_PROXY_REDIRECT_URL: "https://bitpulse.club/oauth2/callback" 
+      OAUTH2_PROXY_COOKIE_DOMAINS: ".bitpulse.club"
+      # 允许登出后重定向到你的主域名和登录界面
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ".bitpulse.club,passport.bitpulse.club"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_COOKIE_SECRET: ${GUARD_COOKIE_SECRET}
+      
+      # --- 🚀 魔法开关：无感自动跳转 ---
+      OAUTH2_PROXY_SKIP_PROVIDER_BUTTON: "true"

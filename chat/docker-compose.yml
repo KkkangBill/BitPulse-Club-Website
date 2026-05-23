@@ -1,5 +1,7 @@
+version: '3.8'
+
 services:
-  # 1. 你的核心数据库（保持原样，极其稳定）
+  # 1. 核心数据库
   postgresql:
     image: paradedb/paradedb:latest
     container_name: lobechat-postgres
@@ -7,22 +9,12 @@ services:
     environment:
       POSTGRES_DB: lobechat
       POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: bitpulse
+      # 从 .env 读取密码
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./pgdata:/var/lib/postgresql
 
-#   # 2. 【终极代替】用完全开源、100%全放通跨域的本地轻量化 WebDAV/S3 桥接器替换 MinIO
-#   lobechat-minio:
-#     image: rclone/rclone:latest
-#     container_name: lobechat-minio
-#     restart: always
-#     ports:
-#       - "9000:9000"
-#     volumes:
-#       - ./minio_data:/data
-#     command: rcd --rc-addr :9000 --rc-no-auth --rc-serve --rc-files /data
-
-  # 3. LobeChat 主程序
+  # 2. LobeChat 主程序
   lobehub:
     image: lobehub/lobehub:latest
     container_name: lobechat-db-app
@@ -31,42 +23,45 @@ services:
       - "3210:3210"
     depends_on:
       - postgresql
-    #   - lobechat-minio
     environment:
+        
       APP_URL: https://chat.bitpulse.club
-      DATABASE_URL: postgresql://myuser:bitpulse@postgresql:5432/lobechat
+      # 动态拼接带密码的数据库连接字符串
+      DATABASE_URL: postgresql://myuser:${POSTGRES_PASSWORD}@postgresql:5432/lobechat
 
-      # --- 谷歌 Gemini 核心密钥配置 ---
-      GEMINI_API_KEY: AIzaSyCjTbeGpYyva-w7hDza6ASqLjK7My6XXI8
-      GOOGLE_API_KEY: AIzaSyCjTbeGpYyva-w7hDza6ASqLjK7My6XXI8
-      ENABLED_GOOGLE: "true"
-
-      # --- 默认模型与模型列表过滤 ---
-      DEFAULT_AGENT_CONFIG: model=gemini-1.5-flash;provider=google
+      # --- 核心模型控制 ---
+      ENABLED_GOOGLE: "1"
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      DEFAULT_AGENT_CONFIG: model=gemini-flash-latest;provider=google
       OPENAI_MODEL_LIST: -all
       OLLAMA_MODEL_LIST: -all
       ANTHROPIC_MODEL_LIST: -all
       DEEPSEEK_MODEL_LIST: -all
       FAL_MODEL_LIST: -all
       COMFYUI_MODEL_LIST: -all
-      GOOGLE_MODEL_LIST: -all,+gemini-1.5-flash,+gemini-3.1-flash-lite,+gemini-3.1-pro-preview,+gemini-3-flash-preview,+gemini-3.1-flash-image-preview,+gemini-3-pro-image-preview,+gemini-3.5-flash
+      GOOGLE_MODEL_LIST: -all,+gemini-3.1-flash-image-preview,+gemini-3-pro-image-preview,+gemini-flash-lite-latest,+gemini-flash-latest,+gemini-pro-latest
 
-      # --- 核心：完美对齐 Cloudflare R2 线上云存储 ---
-      NEXT_PUBLIC_ENABLE_UPLOAD: "true"
-      S3_ACCESS_KEY_ID: 6326fac20a927148ffa5511b757d37c9
-      S3_SECRET_ACCESS_KEY: b4b95fdbd39494c84c04688946434c196f7e2db00368ec4f5b707eb43b92107d
+      # --- S3 云存储配置 ---
+      NEXT_PUBLIC_ENABLE_UPLOAD: "1"
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
       S3_BUCKET: bitpulse-lobechat
       S3_ENDPOINT: https://23a561cd4d567a5c14d54d55979aaf5d.r2.cloudflarestorage.com
       S3_PUBLIC_DOMAIN: https://23a561cd4d567a5c14d54d55979aaf5d.r2.cloudflarestorage.com
       QSTASH_TOKEN: dummy_token_12345
 
-      # --- 安全加密与验证 ---
-      KEY_VAULTS_SECRET: k7B9v2N5x8Z1w4Q3m6P9r2W5t8Y1u4I3
-      AUTH_SECRET: a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6
-      BETTER_AUTH_SECRET: a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6
-      JWKS_KEY: '{"keys":[]}'
-      NEXT_PUBLIC_ENABLE_AUTH: "true"
-      NEXT_PUBLIC_ENABLE_CREDENTIALS: "true"
+      # --- 安全与身份验证 ---
+      KEY_VAULTS_SECRET: ${KEY_VAULTS_SECRET}
+      AUTH_SECRET: ${AUTH_SECRET}
+      NEXT_PUBLIC_ENABLE_AUTH: "1"
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
 
-      # --- 超级管理员邮箱 ---
-      ADMIN_EMAILS: kkbill13552684201@petalmail.com
+      # --- Logto SSO 单点登录配置 ---
+      ENABLE_OAUTH_SSO: "1"
+      AUTH_SSO_PROVIDERS: logto
+      AUTH_DISABLE_EMAIL_PASSWORD: "1"
+      
+      AUTH_LOGTO_ID: ${AUTH_LOGTO_ID}
+      AUTH_LOGTO_SECRET: ${AUTH_LOGTO_SECRET}
+      AUTH_LOGTO_ISSUER: https://passport.bitpulse.club/oidc

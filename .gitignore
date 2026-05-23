@@ -1,7 +1,21 @@
-# 忽略 Lobechat 的数据库数据 (已重命名为 chat)
+# ==========================================
+# 核心环境与系统忽略
+# ==========================================
+# 忽略所有目录下的环境变量文件（极其重要！）
+**/.env
+*.env
+
+*.log
+.DS_Store
+
+# ==========================================
+# 各服务持久化数据忽略 (绝不能上传到 Git)
+# ==========================================
+
+# 1. 忽略 Lobechat 的数据库数据
 chat/pgdata/
 
-# 忽略 NAS 的私有数据、日志和缓存 (已重命名为 pan)
+# 2. 忽略 NAS (Alist) 的私有数据、日志和缓存
 pan/data/
 pan/log/
 pan/temp/
@@ -9,11 +23,23 @@ pan/*.db
 pan/*.db-shm
 pan/*.db-wal
 
-# 忽略可能包含密码的环境变量文件
-.env
+# 3. 忽略 Logto SSO 通行证的数据库数据 (原 Authentik 已弃用)
+passport/logto_data/
+
+
+# ==========================================
+# 补充：其他微服务缓存与工具忽略
+# ==========================================
+
+# 4. 忽略 Redis 缓存数据 (如果你的 OAuth2-Proxy 使用了 Redis)
+redis_data/
+*/redis_data/
+
+# 5. 忽略 Nginx 可能产生的本地访问/错误日志挂载
+nginx/logs/
 *.log
-.DS_Store
-# 忽略 Authentik 数据
-passport/database/
-passport/media/
-passport/certs/
+
+# 6. 忽略前端或开发工具的自动生成文件夹
+.vscode/
+.idea/
+node_modules/
