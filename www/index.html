@@ -166,10 +166,12 @@
             const step3_Logto = `https://passport.bitpulse.club/oidc/session/end?client_id=${logtoClientId}&post_logout_redirect_uri=${homeUrl}`;
 
             // 骨牌第 2 站：网关保安注销，撕掉主域名门票，然后带着参数去 Logto
+            // 这一层必须编码，因为它是传给 OAuth2-Proxy 读取的
             const step2_Proxy = `https://bitpulse.club/oauth2/sign_out?rd=${encodeURIComponent(step3_Logto)}`;
 
             // 骨牌第 1 站：直奔子网站的核爆节点，炸毁 LobeChat 凭证，然后带着参数去网关
-            const step1_Lobe = `https://chat.bitpulse.club/sso-kill?rd=${encodeURIComponent(step2_Proxy)}`;
+            // 🚨 核心修复：这里绝对不能加 encodeURIComponent！让 Nginx 接收最纯净的 https:// 开头网址
+            const step1_Lobe = `https://chat.bitpulse.club/sso-kill?rd=${step2_Proxy}`;
 
             // 推倒第一块骨牌！开始 0.5 秒的极速连环跳转！
             window.location.href = step1_Lobe;
