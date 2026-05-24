@@ -8,6 +8,9 @@ services:
     restart: always
     ports:
       - "80:80"
+    # 新增：让 Nginx 容器读取 .env
+    env_file:
+      - ../.env
     volumes:
       - .:/usr/share/nginx/html:ro
-      - ./nginx-conf:/etc/nginx/conf.d:ro
+      - ./nginx-conf:/etc/nginx/templates:ro

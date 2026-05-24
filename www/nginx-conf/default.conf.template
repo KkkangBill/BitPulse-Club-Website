@@ -68,6 +68,11 @@ server {
         error_page 401 = /oauth2/start;
         root /usr/share/nginx/html;
         index index.html;
+
+        # === 新增：动态替换 HTML 中的占位符 ===
+        sub_filter '__GUARD_CLIENT_ID__' '${GUARD_CLIENT_ID}';
+        sub_filter_once off;  # 开启全文匹配替换
+
         try_files $uri $uri/ /index.html;
     }
 }
