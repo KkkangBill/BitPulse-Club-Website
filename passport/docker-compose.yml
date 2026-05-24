@@ -40,7 +40,7 @@ services:
     env_file:
       - ../.env
     environment:
-      - TRUST_PROXY_HEADER="true"
+      - TRUST_PROXY_HEADER=true
       - DB_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - ENDPOINT=${LOGTO_ENDPOINT}
       - ADMIN_ENDPOINT=${LOGTO_ADMIN_ENDPOINT}
