@@ -29,7 +29,7 @@ services:
     environment:
       APP_URL: https://chat.bitpulse.club
       DATABASE_URL: postgresql://myuser:${POSTGRES_PASSWORD}@postgresql:5432/lobechat
-
+      
       # --- 核心模型控制 ---
       ENABLED_GOOGLE: "1"
       GEMINI_API_KEY: ${GEMINI_API_KEY}
